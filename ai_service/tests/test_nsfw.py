@@ -25,9 +25,8 @@ from ai_service.nsfw import detect_nsfw
 images = [
     "ai_service/test_images/1.jpeg",
     "ai_service/test_images/2.jpeg",
-    "ai_service/test_images/3.jpeg",
-    "ai_service/test_images/4.jpeg",
-    "ai_service/test_images/5.jpeg",
+    "ai_service/test_images/3.jpg",
+    "ai_service/test_images/4.jpg",
 ]
 
 for img in images:

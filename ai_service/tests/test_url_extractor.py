@@ -1,12 +1,19 @@
+"""
+Tests the URL extractor thoroughly with tests ranging from basic tests, parameterized tests, 
+feature tests all the way to edge cases tests
+
+Author:
+- Vishmayraj
+"""
+
 import pytest
 from ai_service.url_extractor import _extract_urls
 
 
 class TestURLExtractor:
-
-    # -------------------------
-    # BASIC TESTS
-    # -------------------------
+    """
+    Basic Tests
+    """
 
     def test_single_url(self):
         text = "Check this https://example.com"
@@ -74,9 +81,9 @@ class TestURLExtractor:
         assert urls == ["https://example.com/path?x=1#section"]
         assert clean == "Check"
 
-    # -------------------------
-    # PARAMETRIZED TESTS
-    # -------------------------
+    """
+    Parameterized Tests
+    """
 
     @pytest.mark.parametrize(
         "text,expected_urls,expected_clean",
@@ -93,9 +100,9 @@ class TestURLExtractor:
         assert urls == expected_urls
         assert clean == expected_clean
 
-    # -------------------------
-    # FEATURE TESTS
-    # -------------------------
+    """
+    Feature Tests
+    """
 
     def test_normalization(self):
         text = "Visit www.google.com"
@@ -109,9 +116,9 @@ class TestURLExtractor:
 
         assert urls == ["https://a.com"]
 
-    # -------------------------
-    # EDGE CASES
-    # -------------------------
+    """
+    Edge Cases Tests
+    """
 
     def test_punctuation_noise(self):
         text = "Wow!!! https://example.com/test?!"

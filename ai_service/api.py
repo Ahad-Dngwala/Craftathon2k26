@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, field_validator
 
 from ai_service.url_extractor import extract_urls
-from ai_service.classifier import _classify
+from ai_service.classifier import classify
 
 app = FastAPI(title="AI Content Classifier")
 
@@ -29,7 +29,7 @@ class ClassifyRequest(BaseModel):
 async def classify_text(body: ClassifyRequest) -> dict:
     try:
         urls, cleaned_text = extract_urls(body.text)
-        result = _classify(cleaned_text)
+        result = classify(cleaned_text)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

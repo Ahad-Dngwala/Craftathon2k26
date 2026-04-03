@@ -14,7 +14,7 @@ from transformers import pipeline
 _classifier = pipeline(
     "zero-shot-classification",
     model="facebook/bart-large-mnli",
-    device=-1,  # CPU; swap to device=0 if GPU is available
+    device=0,  # CPU; swap to device=0 if GPU is available
 )
 
 LABELS: list[str] = [
@@ -56,7 +56,7 @@ def _derive_risk_score(confidence: float) -> str:
     return "HIGHEST"
 
 
-def _classify(cleaned_text: str) -> ClassificationResult:
+def classify(cleaned_text: str) -> ClassificationResult:
     # Guard: empty or whitespace-only input after URL extraction.
     # The model produces meaningless output on blank strings, so we
     # short-circuit immediately and return a sentinel result.
