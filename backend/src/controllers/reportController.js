@@ -30,7 +30,7 @@ exports.handleReport = async (req, res) => {
         // 🧠 Create JSON
         const reportJSON = {
             ...req.body,
-            reportId: Number(req.body.reportId),
+            reportId: req.body.reportId,
             evidenceCID,
             status: "PENDING",
             evidenceCount: evidenceCID.length,
