@@ -1,123 +1,53 @@
-# AI SERVICE MODULE
+# AI Service Module
 
 ## Overview
 
-This module processes user-submitted text to:
+This module processes user-submitted text through a complete NLP pipeline to:
 
-1. Extract URLs
-2. Clean the text for NLP processing
-3. (Next) Classify content risk
-
----
-
-## Current Status
-
-✅ URL Extraction — **COMPLETED**
-⏳ Text Classification — **IN PROGRESS**
+- Extract URLs  
+- Clean and normalize text  
+- Classify content risk using a zero-shot model  
+- Generate a structured risk assessment output  
 
 ---
 
-## Module Structure
+## Pipeline
 
-```sh
-ai_service/
-│   classifier.py
-│   main.py
-│   url_extractor.py
-│   requirements.txt
-│   README.md
-│
-└────tests/
-        test_url_extractor.py
-```
+Input Text  
+   ↓  
+URL Extraction  
+   ↓  
+Text Cleaning  
+   ↓  
+Zero-Shot Classification  
+   ↓  
+Risk Scoring  
+   ↓  
+JSON Output  
 
 ---
 
-## 1. URL Extraction
+## Features
 
-### Function
+### 1. URL Extraction
 
+**Function**
 ```python
 from ai_service.url_extractor import extract_urls
 
 urls, cleaned_text = extract_urls(input_text)
 ```
 
----
+**Behavior**
+- Extracts:
+  - http://, https://
+  - www. links
+- Removes URLs from text
+- Cleans whitespace
 
-### Behavior
+### 2. Classification
 
-* Extracts:
-
-  * `http://` and `https://` URLs
-  * `www.` links
-* Removes URLs from text
-* Cleans whitespace
-* Preserves original text structure as much as possible
-
----
-
-### Example
-
-```python
-text = "Check this out https://example.com and www.google.com"
-
-urls, cleaned_text = extract_urls(text)
-```
-
-#### Output:
-
-```python
-urls = [
-    "https://example.com",
-    "www.google.com"
-]
-
-cleaned_text = "Check this out and"
-```
-
----
-
-### Edge Case Handling
-
-* Trailing punctuation removed:
-
-  * `https://a.com.` → `https://a.com`
-* Handles:
-
-  * Multiple URLs
-  * Query params and fragments
-  * No URL input
-  * Large text input
-* Leaves minimal artifacts (e.g. empty brackets may remain)
-
----
-
-### Design Notes
-
-* Stateless, pure function
-* No external dependencies
-* Fast and deterministic
-* Built using regex + positional parsing (no string replace bugs)
-
----
-
-## 2. Text Preprocessing
-
-* Input: `cleaned_text` from extractor
-* If empty → mark as `"needs_review"` (to be implemented in classifier)
-
----
-
-## 3. Classification (Planned)
-
-### Model
-
-```
-facebook/bart-large-mnli
-```
-
-### Labels
+**Model:** facebook/bart-large-mnli (zero-shot)
 
 ```python
 LABELS = [
@@ -130,9 +60,24 @@ LABELS = [
 ]
 ```
 
----
+**Behavior**
+- Classifies cleaned text into risk categories
+- Returns:
+  - top label
+  - confidence score
+  - full label distribution
 
-## 4. Output Format (Target)
+### 3. Risk Scoring
+
+| Confidence | Risk Level      |
+|------------|----------------|
+| < 0.20     | PROBABLY PRANK |
+| < 0.40     | LOW            |
+| < 0.60     | MEDIUM         |
+| < 0.80     | HIGH           |
+| ≥ 0.80     | HIGHEST        |
+
+### 4. Output Format
 
 ```json
 {
@@ -140,43 +85,66 @@ LABELS = [
   "extracted_urls": [...],
   "top_label": "...",
   "confidence": 0.xx,
+  "all_labels": {
+    "safe": 0.xx,
+    "threat": 0.xx
+  },
   "risk_score": "PROBABLY PRANK | LOW | MEDIUM | HIGH | HIGHEST"
 }
 ```
 
----
-
-## 5. Testing
-
-Run tests:
+### 5. Running the Pipeline
 
 ```bash
-pytest -v
+python -m ai_service.run_test
 ```
 
-Coverage includes:
+### 6. Testing
 
-* Basic extraction
-* Edge cases
-* Large input
-* Noise handling
-* Feature validation
+```bash
+pytest -s
+```
+
+**Includes:**
+
+- Classification scenarios
+- URL extraction cases
+- Edge cases (empty input, multiple URLs)
+
+**Key Principles:**
+- Minimal and fast
+- No fine-tuning required
+- Explainable outputs
+- Modular design
+#### Notes
+
+- Zero-shot model may produce false positives
+- Designed for rapid deployment and demonstration cases
+- Can be improved with fine-tuning or rule-based post-processing
+
+---
+
+## Current Status
+
+- URL Extraction — COMPLETED  
+- Text Classification — COMPLETED  
+- End-to-End Pipeline — COMPLETED  
 
 ---
 
-## Key Principles
+## Module Structure
 
-* Fast
-* Explainable
-* Minimal dependencies
-* Modular pipeline
+```sh
+ai_service/
+│   classifier.py
+│   main.py
+│   url_extractor.py
+│   requirements.txt
+│   README.md
+│   pytest.ini
+│   conftest.py
+│
+└───tests/
+        test_url_extractor.py
+        test_classifier.py
 
----
-
-## Next Steps
-
-* Implement classifier (`classifier.py`)
-* Integrate pipeline in `main.py`
-* Add API or service wrapper (if needed)
-
----
