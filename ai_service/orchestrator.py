@@ -18,39 +18,58 @@ Author:
     Vishmayraj
 """
 
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 
 from url_extractor import extract_urls
 from models.nlp import classify as classify_text
 from models.nsfw import detect_nsfw
 from models.clip import classify_image
 from models.ocr import extract_text
+from dataclasses import asdict, is_dataclass
+
+
+class OrchestratorError(Exception):
+    """Base exception for orchestrator failures."""
+
+
+def _normalize(result: Any) -> Dict[str, Any]:
+    """
+    Normalize any model output to a plain dict.
+    Handles dataclasses, dicts, and unexpected types.
+    """
+    if result is None:
+        return None
+    if isinstance(result, dict):
+        return result
+    if is_dataclass(result) and not isinstance(result, type):
+        return asdict(result)
+    # Fallback: unknown type, don't crash the pipeline
+    return {"error": "unexpected_type", "message": f"Got {type(result).__name__}"}
+
+
+def _safe_call(func, *args, name="") -> Dict[str, Any]:
+    try:
+        result = func(*args)
+        return _normalize(result)
+    except Exception as e:
+        return {
+            "error": f"{name}_failed",
+            "message": str(e),
+        }
 
 
 def _compute_risk_score(
-    nlp: Dict[str, Any],
+    nlp: Optional[Dict[str, Any]],
     nsfw: Optional[Dict[str, Any]],
     clip: Optional[Dict[str, Any]],
 ) -> str:
-    """
-    Compute the final risk score based on model outputs.
-
-    Priority:
-    1. NSFW detection (highest priority)
-    2. NLP confidence
-    3. CLIP-based visual classification
-
-    Returns:
-        str: One of ["LOW", "HIGH", "HIGHEST"]
-    """
-
-    if nsfw and nsfw.get("is_nsfw"):
+    if nsfw and not nsfw.get("error") and nsfw.get("is_nsfw"):
         return "HIGHEST"
 
-    if nlp.get("confidence", 0) > 0.8:
+    if nlp and not nlp.get("error") and nlp.get("confidence", 0) > 0.8:
         return "HIGH"
 
-    if clip:
+    if clip and not clip.get("error"):
         violent_labels = {"weapon", "gore", "violent_scene"}
         if (
             clip.get("label") in violent_labels
@@ -81,34 +100,23 @@ def analyze_input(text: str, image: Optional[Any] = None) -> Dict[str, Any]:
         }
     """
 
-    cleaned_text, extracted_urls = extract_urls(text)
+    if not text or not isinstance(text, str):
+        raise ValueError("Invalid input: 'text' must be a non-empty string")
 
-    # Primary NLP classification
-    nlp_result = classify_text(cleaned_text)
+    extracted_urls, cleaned_text = extract_urls(text)
+
+    nlp_result = _safe_call(classify_text, cleaned_text, name="nlp")
 
     nsfw_result = None
     clip_result = None
     ocr_result = None
 
-    # Image pipeline
     if image is not None:
-        nsfw_result = detect_nsfw(image)
-        clip_result = classify_image(image)
+        nsfw_result = _safe_call(detect_nsfw, image, name="nsfw")
+        clip_result = _safe_call(classify_image, image, name="clip")
+        ocr_result = _safe_call(extract_text, image, name="ocr")
 
-        ocr_result = extract_text(image)
-        if ocr_result and ocr_result.get("text", "").strip():
-            ocr_text = ocr_result["text"]
-
-            ocr_nlp = classify_text(ocr_text)
-            ocr_result["nlp"] = ocr_nlp
-
-            # Escalation: prefer higher-confidence signal
-            if ocr_nlp.get("confidence", 0) > nlp_result.get("confidence", 0):
-                nlp_result = ocr_nlp
-
-    final_risk_score = _compute_risk_score(
-        nlp_result, nsfw_result, clip_result
-    )
+    final_risk_score = _compute_risk_score(nlp_result, nsfw_result, clip_result)
 
     return {
         "cleaned_text": cleaned_text,

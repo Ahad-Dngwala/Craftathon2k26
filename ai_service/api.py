@@ -78,10 +78,13 @@ async def classify_endpoint(body: ClassifyRequest) -> Dict[str, Any]:
 
     try:
         result = analyze_input(body.text, body.image)
+    except ValueError as exc:
+        # Input validation failures are a 422, not a 500
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail="Internal server error during classification",
+            detail=f"Classification failed: {exc}",  # remove in prod
         ) from exc
 
     return {
