@@ -2,19 +2,17 @@ import re
 from typing import List, Tuple
 
 
-# Regex breakdown:
-# - supports http/https
-# - supports www
-# - avoids trailing punctuation
 URL_REGEX = re.compile(
-    r"""(
+    r"""
+    (?P<url>
         (?:
             https?://
             |
             www\.
         )
         [^\s<>"'()]+
-    )""",
+    )
+    """,
     re.VERBOSE | re.IGNORECASE,
 )
 
@@ -23,15 +21,24 @@ TRAILING_PUNCTUATION = '.,!?;:)]}\'"'
 
 
 def clean_url(url: str) -> str:
-    """
-    Remove trailing punctuation from extracted URLs.
-    """
+    """Remove trailing punctuation."""
     return url.rstrip(TRAILING_PUNCTUATION)
 
 
-def extract_urls(text: str) -> Tuple[List[str], str]:
+def normalize_url(url: str) -> str:
+    """Normalize URL (optional enhancement)."""
+    if url.startswith("www."):
+        return "http://" + url
+    return url
+
+
+def extract_urls(text: str, *, deduplicate: bool = False, normalize: bool = False) -> Tuple[List[str], str]:
     """
     Extract URLs and return cleaned text.
+
+    Args:
+        deduplicate: Remove duplicate URLs
+        normalize: Convert 'www.' → 'http://www.'
 
     Returns:
         urls: List of extracted URLs
@@ -40,33 +47,32 @@ def extract_urls(text: str) -> Tuple[List[str], str]:
     if not text or not text.strip():
         return [], ""
 
-    matches = URL_REGEX.findall(text)
+    urls = []
+    cleaned_parts = []
+    last_index = 0
 
-    # Clean URLs
-    urls = [clean_url(url) for url in matches]
+    for match in URL_REGEX.finditer(text):
+        start, end = match.span()
+        raw_url = match.group("url")
 
-    # Remove URLs from text
-    cleaned_text = text
-    for url in matches:
-        cleaned_text = cleaned_text.replace(url, "")
+        cleaned_parts.append(text[last_index:start])
 
-    # Normalize whitespace
+        url = clean_url(raw_url)
+
+        if normalize:
+            url = normalize_url(url)
+
+        urls.append(url)
+
+        last_index = end
+
+    cleaned_parts.append(text[last_index:])
+
+    cleaned_text = "".join(cleaned_parts)
+
     cleaned_text = re.sub(r"\s+", " ", cleaned_text).strip()
 
+    if deduplicate:
+        urls = list(dict.fromkeys(urls))
+
     return urls, cleaned_text
-
-if __name__ == "__main__":
-    samples = [
-        "Check this out https://example.com/test?x=1.",
-        "Visit www.google.com now!",
-        "Multiple links: https://a.com and https://b.com/test.",
-        "No links here.",
-        "Messy link (https://example.com/test).",
-    ]
-
-    for s in samples:
-        urls, clean = extract_urls(s)
-        print("INPUT :", s)
-        print("URLS  :", urls)
-        print("CLEAN :", clean)
-        print("-" * 40)
