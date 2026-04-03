@@ -7,6 +7,17 @@ interface AppState {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
 
+  // Auth
+  token: string | null;
+  admin: { id: string; username: string; name: string } | null;
+  isAuthenticated: boolean;
+  login: (token: string, admin: { id: string; username: string; name: string }) => void;
+  logout: () => void;
+
+  // Tabs
+  activeTab: 'dashboard' | 'threads';
+  setActiveTab: (tab: 'dashboard' | 'threads') => void;
+
   // Theme
   theme: 'dark' | 'light';
   toggleTheme: () => void;
@@ -42,6 +53,15 @@ export const useAppStore = create<AppState>()(
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
+      token: null,
+      admin: null,
+      isAuthenticated: false,
+      login: (token, admin) => set({ token, admin, isAuthenticated: true }),
+      logout: () => set({ token: null, admin: null, isAuthenticated: false, activeTab: 'dashboard' }),
+
+      activeTab: 'dashboard',
+      setActiveTab: (tab) => set({ activeTab: tab }),
+
       theme: 'light',
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
 
@@ -70,6 +90,9 @@ export const useAppStore = create<AppState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         theme: state.theme,
         audioEnabled: state.audioEnabled,
+        token: state.token,
+        admin: state.admin,
+        isAuthenticated: state.isAuthenticated,
       }),
     }
   )

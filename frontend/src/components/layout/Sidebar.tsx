@@ -3,18 +3,14 @@ import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldAlert, LayoutDashboard, Bell, Activity, FileText,
-  Settings, ChevronLeft, ChevronRight, Zap, Eye
+  Settings, ChevronLeft, ChevronRight, Zap, Eye, LogOut
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import clsx from 'clsx';
 
 const NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { id: 'threats', icon: ShieldAlert, label: 'Threats' },
-  { id: 'reports', icon: FileText, label: 'Reports' },
-  { id: 'activity', icon: Activity, label: 'Activity' },
-  { id: 'alerts', icon: Bell, label: 'Alerts' },
-  { id: 'monitor', icon: Eye, label: 'Monitor' },
+  { id: 'threads', icon: FileText, label: 'Reports & Logs' },
 ];
 
 interface MagneticIconProps {
@@ -22,9 +18,11 @@ interface MagneticIconProps {
   label: string;
   active?: boolean;
   collapsed: boolean;
+  onClick?: () => void;
+  danger?: boolean;
 }
 
-function MagneticIcon({ icon: Icon, label, active, collapsed }: MagneticIconProps) {
+function MagneticIcon({ icon: Icon, label, active, collapsed, onClick, danger }: MagneticIconProps) {
   const ref = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
 
@@ -70,13 +68,16 @@ function MagneticIcon({ icon: Icon, label, active, collapsed }: MagneticIconProp
     <div
       ref={ref}
       title={label}
+      onClick={onClick}
       style={{ transition: 'transform 0.15s ease' }}
       className={clsx(
-        'relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-none group',
+        'relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer group',
         'transition-colors duration-150',
-        active
-          ? 'bg-indigo-500/15 text-indigo-300'
-          : 'text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:text-gray-200 hover:bg-black/5 dark:bg-white/5'
+        active && !danger
+          ? 'bg-indigo-500/15 text-indigo-600'
+          : danger 
+            ? 'text-red-500 hover:bg-red-50'
+            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
       )}
     >
       {active && (
@@ -104,7 +105,7 @@ function MagneticIcon({ icon: Icon, label, active, collapsed }: MagneticIconProp
 }
 
 export default function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const { sidebarCollapsed, toggleSidebar, activeTab, setActiveTab } = useAppStore();
 
   return (
     <motion.aside
@@ -131,8 +132,8 @@ export default function Sidebar() {
               transition={{ duration: 0.15 }}
               className="overflow-hidden"
             >
-              <p className="text-xs font-semibold text-gray-900 dark:text-white leading-tight whitespace-nowrap">Security CC</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight whitespace-nowrap">Command Center</p>
+              <p className="text-xs font-semibold text-gray-900 leading-tight whitespace-nowrap">Security CC</p>
+              <p className="text-[10px] text-gray-500 leading-tight whitespace-nowrap">Command Center</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -140,21 +141,17 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-hidden">
-        {NAV_ITEMS.map((item, i) => (
+        {NAV_ITEMS.map((item) => (
           <MagneticIcon
             key={item.id}
             icon={item.icon}
             label={item.label}
-            active={i === 0}
+            active={activeTab === item.id}
             collapsed={sidebarCollapsed}
+            onClick={() => setActiveTab(item.id as 'dashboard' | 'threads')}
           />
         ))}
       </nav>
-
-      {/* Settings */}
-      <div className="px-2 pb-4 border-t pt-3" style={{ borderColor: 'var(--border-05)' }}>
-        <MagneticIcon icon={Settings} label="Settings" collapsed={sidebarCollapsed} />
-      </div>
 
       {/* Collapse toggle */}
       <button
