@@ -7,69 +7,68 @@ interface ContentTypePieProps {
   data: { name: string; value: number }[];
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#facc15', '#10b981', '#3b82f6'];
+const AIRBNB_COLORS = ['#FF385C', '#00A699', '#FC642D', '#484848', '#717171', '#B0B0B0'];
 
 export default function ContentTypePie({ data }: ContentTypePieProps) {
-  // Filter out any zero value slices to make the pie chart cleaner
   const filteredData = data.filter(item => item.value > 0);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
-      className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 w-full h-[400px] flex flex-col"
-    >
-      <div className="mb-2">
-        <h2 className="text-lg font-bold text-gray-900">Content Breakdown</h2>
-        <p className="text-sm text-gray-500">Distribution of report types</p>
-      </div>
+    <div className="w-full h-[400px]">
+      {filteredData.length > 0 ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={filteredData}
+              cx="50%"
+              cy="50%"
+              innerRadius={90}
+              outerRadius={130}
+              paddingAngle={8}
+              dataKey="value"
+              stroke="none"
+              animationDuration={2000}
+            >
+              {filteredData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={AIRBNB_COLORS[index % AIRBNB_COLORS.length]} 
+                  className="hover:opacity-80 transition-opacity outline-none"
+                />
+              ))}
+            </Pie>
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: '#FFFFFF', 
+                borderRadius: '24px', 
+                border: '1px solid rgba(0,0,0,0.05)', 
+                padding: '16px 20px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.08)' 
+              }}
+              itemStyle={{ color: '#222222', fontWeight: '900', fontSize: '16px' }}
+            />
+            <Legend 
+              verticalAlign="bottom" 
+              align="center"
+              iconType="circle"
+              iconSize={10}
+              wrapperStyle={{ 
+                fontSize: '10px', 
+                fontWeight: '900', 
+                color: '#717171', 
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                paddingTop: '40px' 
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
 
-      <div className="flex-1 w-full min-h-0">
-        {filteredData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={filteredData}
-                cx="50%"
-                cy="50%"
-                innerRadius={70}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="value"
-                stroke="none"
-              >
-                {filteredData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={COLORS[index % COLORS.length]} 
-                    className="hover:opacity-80 transition-opacity outline-none"
-                  />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                  borderRadius: '12px', 
-                  border: 'none', 
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' 
-                }}
-                itemStyle={{ color: '#1f2937', fontWeight: '500' }}
-              />
-              <Legend 
-                verticalAlign="bottom" 
-                height={36} 
-                iconType="circle"
-                wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            No categorization data available.
-          </div>
-        )}
-      </div>
-    </motion.div>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-gray-400 font-medium">
+          No categorization data available.
+        </div>
+      )}
+    </div>
   );
 }
+
