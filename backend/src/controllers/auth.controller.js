@@ -39,6 +39,15 @@ const adminLogin = async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    // Set token in HttpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
     return res.status(200).json({
       status: 'success',
       message: 'Login successful.',
@@ -73,7 +82,26 @@ const verifyToken = async (req, res) => {
   });
 };
 
+/**
+ * POST /api/admin/logout
+ * Clears the admin token cookie.
+ */
+const adminLogout = async (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  });
+  
+  return res.status(200).json({
+    status: 'success',
+    message: 'Logged out successfully.'
+  });
+};
+
 module.exports = {
   adminLogin,
+  adminLogout,
   verifyToken,
 };

@@ -52,7 +52,6 @@ exports.handleReport = async (req, res) => {
             contentType: aiResult.contentType,
             aiConfidence: aiResult.aiConfidence,
             severity: aiResult.severity,
-            evidenceCID,
             evidenceURL,
             status: "PENDING",
             evidenceCount: evidenceCID.length,

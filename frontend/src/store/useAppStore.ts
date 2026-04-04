@@ -7,6 +7,17 @@ interface AppState {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
 
+  // Auth
+  token: string | null;
+  admin: { id: string; username: string; name: string } | null;
+  isAuthenticated: boolean;
+  login: (token: string, admin: { id: string; username: string; name: string }) => void;
+  logout: () => void;
+
+  // Tabs
+  activeTab: 'dashboard' | 'threads';
+  setActiveTab: (tab: 'dashboard' | 'threads') => void;
+
   // Theme
   theme: 'dark' | 'light';
   toggleTheme: () => void;
@@ -36,11 +47,48 @@ interface AppState {
   toggleAudio: () => void;
 }
 
+// Cookie Utilities
+const getCookie = (name: string) => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+};
+
+const setCookie = (name: string, value: string, days: number = 7) => {
+  if (typeof document === 'undefined') return;
+  const d = new Date();
+  d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+  const expires = `expires=${d.toUTCString()}`;
+  document.cookie = `${name}=${value}; ${expires}; path=/; SameSite=Lax`;
+};
+
+const deleteCookie = (name: string) => {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+};
+
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+
+      token: getCookie('token'),
+      admin: null,
+      isAuthenticated: !!getCookie('token'),
+      login: (token, admin) => {
+        setCookie('token', token);
+        set({ token, admin, isAuthenticated: true });
+      },
+      logout: () => {
+        deleteCookie('token');
+        set({ token: null, admin: null, isAuthenticated: false, activeTab: 'dashboard' });
+      },
+
+      activeTab: 'dashboard',
+      setActiveTab: (tab) => set({ activeTab: tab }),
 
       theme: 'light',
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
@@ -70,7 +118,11 @@ export const useAppStore = create<AppState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         theme: state.theme,
         audioEnabled: state.audioEnabled,
+        admin: state.admin,
+        isAuthenticated: state.isAuthenticated,
+        // Removed token from persist, now handled by cookies
       }),
     }
   )
 );
+

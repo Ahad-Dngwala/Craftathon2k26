@@ -2,19 +2,15 @@
 import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ShieldAlert, LayoutDashboard, Bell, Activity, FileText,
-  Settings, ChevronLeft, ChevronRight, Zap, Eye
+  Shield, LayoutDashboard, Bell, Activity, FileText,
+  Settings, ChevronLeft, ChevronRight, Zap, Eye, LogOut
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import clsx from 'clsx';
 
 const NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { id: 'threats', icon: ShieldAlert, label: 'Threats' },
-  { id: 'reports', icon: FileText, label: 'Reports' },
-  { id: 'activity', icon: Activity, label: 'Activity' },
-  { id: 'alerts', icon: Bell, label: 'Alerts' },
-  { id: 'monitor', icon: Eye, label: 'Monitor' },
+  { id: 'threads', icon: FileText, label: 'Threads/Reports' },
 ];
 
 interface MagneticIconProps {
@@ -22,9 +18,11 @@ interface MagneticIconProps {
   label: string;
   active?: boolean;
   collapsed: boolean;
+  onClick?: () => void;
+  danger?: boolean;
 }
 
-function MagneticIcon({ icon: Icon, label, active, collapsed }: MagneticIconProps) {
+function MagneticIcon({ icon: Icon, label, active, collapsed, onClick, danger }: MagneticIconProps) {
   const ref = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
 
@@ -70,13 +68,16 @@ function MagneticIcon({ icon: Icon, label, active, collapsed }: MagneticIconProp
     <div
       ref={ref}
       title={label}
+      onClick={onClick}
       style={{ transition: 'transform 0.15s ease' }}
       className={clsx(
-        'relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-none group',
+        'relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer group',
         'transition-colors duration-150',
-        active
-          ? 'bg-indigo-500/15 text-indigo-300'
-          : 'text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:text-gray-200 hover:bg-black/5 dark:bg-white/5'
+        active && !danger
+          ? 'bg-indigo-500/15 text-indigo-600'
+          : danger 
+            ? 'text-red-500 hover:bg-red-50'
+            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
       )}
     >
       {active && (
@@ -104,67 +105,89 @@ function MagneticIcon({ icon: Icon, label, active, collapsed }: MagneticIconProp
 }
 
 export default function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const { sidebarCollapsed, toggleSidebar, activeTab, setActiveTab } = useAppStore();
 
   return (
     <motion.aside
-      animate={{ width: sidebarCollapsed ? 64 : 220 }}
-      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-      className="relative flex flex-col shrink-0 h-screen overflow-hidden border-r"
-      style={{
-        background: 'var(--bg-surface-trans)',
-        borderColor: 'var(--border-05)',
-        backdropFilter: 'blur(12px)',
-      }}
+      animate={{ width: sidebarCollapsed ? 80 : 280 }}
+      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+      className="relative flex flex-col shrink-0 h-screen overflow-hidden z-20 border-r border-gray-100 bg-white"
     >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-3 py-5 border-b" style={{ borderColor: 'var(--border-05)' }}>
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30">
-          <Zap size={15} className="text-gray-900 dark:text-white" />
+      <div className="flex items-center gap-3 px-8 py-10">
+        <div className="w-10 h-10 rounded-xl bg-[#FF385C] flex items-center justify-center shrink-0 shadow-lg shadow-[#FF385C]/20">
+          <Shield size={20} className="text-white" fill="currentColor" />
         </div>
         <AnimatePresence>
           {!sidebarCollapsed && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
               className="overflow-hidden"
             >
-              <p className="text-xs font-semibold text-gray-900 dark:text-white leading-tight whitespace-nowrap">Security CC</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight whitespace-nowrap">Command Center</p>
+              <h2 className="text-xl font-black tracking-tighter text-[#FF385C] leading-none">security</h2>
+              <p className="text-[10px] text-gray-400 font-black tracking-[0.2em] uppercase mt-1 italic">Admin Hub</p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-hidden">
-        {NAV_ITEMS.map((item, i) => (
-          <MagneticIcon
-            key={item.id}
-            icon={item.icon}
-            label={item.label}
-            active={i === 0}
-            collapsed={sidebarCollapsed}
-          />
-        ))}
+      <nav className="flex-1 px-4 py-4 space-y-3 overflow-y-auto">
+        {NAV_ITEMS.map((item) => {
+          const active = activeTab === item.id;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as 'dashboard' | 'threads')}
+              className={clsx(
+                'w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 group relative',
+                active 
+                  ? 'bg-[#FFF1F2] text-[#FF385C]' 
+                  : 'text-gray-500 hover:text-[#222222] hover:bg-gray-50'
+              )}
+            >
+              {active && (
+                <motion.div 
+                  layoutId="sidebar-active"
+                  className="absolute left-0 w-1 h-6 bg-[#FF385C] rounded-full"
+                />
+              )}
+              <Icon size={20} className={clsx('shrink-0 transition-transform duration-300', active ? 'scale-110' : 'group-hover:scale-110')} />
+              {!sidebarCollapsed && (
+                <span className="text-sm font-black tracking-tight">{item.label}</span>
+              )}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* Settings */}
-      <div className="px-2 pb-4 border-t pt-3" style={{ borderColor: 'var(--border-05)' }}>
-        <MagneticIcon icon={Settings} label="Settings" collapsed={sidebarCollapsed} />
+      {/* Logout / Bottom Actions */}
+      <div className="px-4 py-10 border-t border-gray-50">
+        <button
+          className={clsx(
+            'w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-gray-400 hover:text-[#FF385C] hover:bg-[#FFF1F2] transition-all duration-300 group'
+          )}
+        >
+          <LogOut size={20} className="shrink-0 transition-transform group-hover:translate-x-1" />
+          {!sidebarCollapsed && (
+            <span className="text-sm font-black tracking-tight">Logout</span>
+          )}
+        </button>
       </div>
 
       {/* Collapse toggle */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center border bg-[#0B0F1A] z-10 hover:bg-indigo-500/20 transition-colors cursor-none"
-        style={{ borderColor: 'var(--border-1)' }}
+        className="absolute -right-3 top-12 w-8 h-8 rounded-full flex items-center justify-center bg-white text-gray-400 border border-gray-100 shadow-sm z-30 hover:text-[#FF385C] hover:border-[#FF385C]/20 transition-all active:scale-90"
         aria-label="Toggle sidebar"
       >
-        {sidebarCollapsed ? <ChevronRight size={12} className="text-gray-400 dark:text-gray-500 dark:text-gray-400" /> : <ChevronLeft size={12} className="text-gray-400 dark:text-gray-500 dark:text-gray-400" />}
+        {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
     </motion.aside>
   );
 }
+
+

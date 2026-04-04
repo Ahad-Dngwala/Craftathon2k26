@@ -8,6 +8,8 @@ const reportGenerate = require('./routes/report.route');
 const authRoutes = require('./routes/auth.route');
 const dashboardRoutes = require('./routes/dashboard.route');
 
+const cookieParser = require('cookie-parser');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -16,8 +18,9 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 connectDB();
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 // Basic logging middleware
