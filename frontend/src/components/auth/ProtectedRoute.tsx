@@ -20,6 +20,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     const verifyAuth = async () => {
       // For any route this wraps, protect it
       if (!isAuthenticated || !token) {
+        if (isAuthenticated) {
+          logout(); // Clear stale authenticated state if token is gone
+        }
         setIsVerifying(false);
         router.replace('/login');
         return;
