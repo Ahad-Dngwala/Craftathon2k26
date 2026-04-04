@@ -27,6 +27,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
       try {
         const res = await fetch('http://localhost:5000/api/admin/verify', {
+          credentials: 'include',
           headers: {
             Authorization: `Bearer ${token}`,
           },

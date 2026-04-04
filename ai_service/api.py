@@ -16,8 +16,8 @@ Author:
 
 from typing import Optional, Any, Dict
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, field_validator
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from orchestrator import analyze_input
 
@@ -25,27 +25,7 @@ from orchestrator import analyze_input
 app = FastAPI(title="AI Content Classifier")
 
 
-class ClassifyRequest(BaseModel):
-    """
-    Request schema for classification endpoint.
-    """
-
-    text: str
-    image: Optional[Any] = None
-
-    @field_validator("text")
-    @classmethod
-    def validate_text(cls, value: str) -> str:
-        if not value or not value.strip():
-            raise ValueError("text must not be empty or whitespace")
-        return value
-
-
 class SignalResponse(BaseModel):
-    """
-    Structured response for model outputs.
-    """
-
     nlp: Dict[str, Any]
     nsfw: Optional[Dict[str, Any]]
     clip: Optional[Dict[str, Any]]
@@ -53,10 +33,6 @@ class SignalResponse(BaseModel):
 
 
 class ClassifyResponse(BaseModel):
-    """
-    Response schema returned by /classify endpoint.
-    """
-
     cleaned_text: str
     extracted_urls: list[str]
     final_risk_score: str
@@ -64,27 +40,25 @@ class ClassifyResponse(BaseModel):
 
 
 @app.post("/classify", response_model=ClassifyResponse)
-async def classify_endpoint(body: ClassifyRequest) -> Dict[str, Any]:
-    """
-    Classify input text and optional image for risk signals.
+async def classify_endpoint(
+    text: str = Form(...),
+    image: Optional[UploadFile] = File(None),
+) -> Dict[str, Any]:
+    if not text or not text.strip():
+        raise HTTPException(status_code=422, detail="text must not be empty or whitespace")
 
-    Returns:
-        Structured classification results including:
-        - cleaned text
-        - extracted URLs
-        - final risk score
-        - individual model signals
-    """
+    image_bytes = None
+    if image is not None:
+        image_bytes = await image.read()
 
     try:
-        result = analyze_input(body.text, body.image)
+        result = analyze_input(text, image_bytes)
     except ValueError as exc:
-        # Input validation failures are a 422, not a 500
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"Classification failed: {exc}",  # remove in prod
+            detail=f"Classification failed: {exc}",
         ) from exc
 
     return {

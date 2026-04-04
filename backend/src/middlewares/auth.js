@@ -6,16 +6,21 @@ const { JWT_SECRET } = require('../config/admin');
  * Protects dashboard/admin-only routes.
  */
 const requireAdmin = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  let token = req.cookies.token;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+  }
+
+  if (!token) {
     return res.status(401).json({
       status: 'error',
       message: 'Access denied. No token provided.',
     });
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
