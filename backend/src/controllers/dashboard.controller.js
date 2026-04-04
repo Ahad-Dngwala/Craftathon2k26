@@ -1,70 +1,62 @@
+const Report = require('../models/reportModel');
+const { updateReportStatusOnChain } = require("../services/blockchainService");
+
 /**
  * GET /api/admin/dashboard
  * Returns dashboard data - only accessible by authenticated admin.
- * This is a placeholder that returns mock stats.
- * Connect to your actual data sources as needed.
  */
 const getDashboardData = async (req, res) => {
   try {
-    // Mock dashboard data — replace with real DB queries
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const [pieData, weeklyData, totalReports, pendingReports, resolvedReports] = await Promise.all([
+      // Group by contentType
+      Report.aggregate([
+        { $group: { _id: '$contentType', value: { $sum: 1 } } },
+        { $project: { name: '$_id', value: 1, _id: 0 } },
+      ]),
+      // Count reports per day for the last 7 days
+      Report.aggregate([
+        { $match: { createdAt: { $gte: sevenDaysAgo } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            value: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+        { $project: { date: '$_id', value: 1, _id: 0 } },
+      ]),
+      // Counts for KPI cards
+      Report.countDocuments(),
+      Report.countDocuments({ status: "PENDING" }),
+      Report.countDocuments({ status: "RESOLVED" }),
+    ]);
+
+    // Fill missing days for the last 7 days to ensure graph continuity
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const found = weeklyData.find((w) => w.date === dateStr);
+      last7Days.push({
+        name: dateStr,
+        value: found ? found.value : 0,
+      });
+    }
+
     const dashboardData = {
       stats: {
-        totalReports: 142,
-        pendingReports: 23,
-        resolvedReports: 104,
-        criticalReports: 15,
+        total: totalReports,
+        pending: pendingReports,
+        resolved: resolvedReports,
       },
-      recentReports: [
-        {
-          id: 'rep_001',
-          type: 'phishing',
-          riskScore: 'HIGH',
-          status: 'PENDING',
-          createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-          description: 'Suspicious email claiming to be from bank...',
-        },
-        {
-          id: 'rep_002',
-          type: 'scam',
-          riskScore: 'MEDIUM',
-          status: 'RESOLVED',
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-          description: 'Fake job offer requiring upfront payment...',
-        },
-        {
-          id: 'rep_003',
-          type: 'identity_theft',
-          riskScore: 'CRITICAL',
-          status: 'PENDING',
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-          description: 'Personal data found on dark web marketplace...',
-        },
-        {
-          id: 'rep_004',
-          type: 'fraud',
-          riskScore: 'LOW',
-          status: 'RESOLVED',
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-          description: 'Unauthorized charges on credit card statement...',
-        },
-        {
-          id: 'rep_005',
-          type: 'phishing',
-          riskScore: 'HIGH',
-          status: 'IN_REVIEW',
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-          description: 'SMS link redirecting to fake login page...',
-        },
-      ],
       chartData: {
-        weeklyReports: [12, 19, 8, 15, 22, 14, 10],
-        categories: {
-          phishing: 45,
-          scam: 32,
-          identity_theft: 18,
-          fraud: 28,
-          other: 19,
-        },
+        weeklyReports: last7Days,
+        categories: pieData,
       },
     };
 
@@ -81,4 +73,70 @@ const getDashboardData = async (req, res) => {
   }
 };
 
-module.exports = { getDashboardData };
+/**
+ * GET /api/admin/dashboard/reports
+ * Returns all reports for the Threads view
+ */
+const getAllReports = async (req, res) => {
+  try {
+    const reports = await Report.find().sort({ createdAt: -1 });
+    
+    return res.status(200).json({
+      status: 'success',
+      data: reports,
+    });
+  } catch (err) {
+    console.error('Fetch reports error:', err.message);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch reports.',
+    });
+  }
+};
+
+/**
+ * PUT /api/admin/dashboard/reports/:id/status
+ * Updates the status of a specific report
+ */
+const updateReportStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ["PENDING", "REVIEWED", "RESOLVED", "DISMISSED"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ status: 'error', message: 'Invalid status' });
+    }
+
+    const updatedReport = await Report.findOneAndUpdate(
+      { reportId: id }, 
+      { status }, 
+      { new: true }
+    );
+
+    if (!updatedReport) {
+      return res.status(404).json({ status: 'error', message: 'Report not found' });
+    }
+
+      let txHash = null;
+    try {
+      txHash = await updateReportStatusOnChain(id, status);
+    } catch (err) {
+      console.error("Blockchain update error:", err.message);
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: updatedReport,
+      txHash,
+    });
+  } catch (err) {
+    console.error('Update status error:', err.message);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to update report status.',
+    });
+  }
+};
+
+module.exports = { getDashboardData, getAllReports, updateReportStatus };
