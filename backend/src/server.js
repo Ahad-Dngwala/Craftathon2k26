@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const crypto = require('crypto');
 
 const connectDB = require('./lib/db');
 const healthRoutes = require('./routes/health.route');
@@ -23,6 +24,23 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
+// Trust Nginx Proxy
+app.set("trust proxy", true);
+
+// IP Anonymization Middleware
+app.use((req, res, next) => {
+    const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || "0.0.0.0";
+    // If x-forwarded-for is a comma-separated list, grab the first IP
+    const clientIp = rawIp.split(',')[0].trim();
+    
+    req.anonymizedIP = crypto
+        .createHash("sha256")
+        .update(clientIp)
+        .digest("hex");
+        
+    next();
+});
+
 // Basic logging middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
@@ -38,6 +56,13 @@ app.use("/api/upload", reportRoutes);
 app.use('/api/admin', authRoutes);
 app.use('/api/admin/dashboard', dashboardRoutes);
 
+app.get("/debug", (req, res) => {
+    res.json({
+        anonymized_ip: req.anonymizedIP,
+        original_ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip,
+        headers: req.headers
+    });
+});
 // Welcome route
 app.get('/', (req, res) => {
   res.status(200).json({
