@@ -5,7 +5,7 @@
 const ADMIN_CREDENTIALS = {
   id: 'admin_001',
   username: 'admin',
-  password: 'craftathon@2026',
+  password: 'admin',
   name: 'Craftathon Admin',
 };
 

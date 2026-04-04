@@ -23,6 +23,51 @@ export default function RootPage() {
     imageFile: null
   });
 
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!formData.description) {
+      alert("Please provide a description of the threat.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data = new FormData();
+      data.append('description', formData.description);
+      if (formData.targetUrl) {
+        data.append('url', formData.targetUrl);
+      }
+      if (formData.imageFile) {
+        data.append('image', formData.imageFile);
+      }
+
+      const res = await fetch('http://localhost:5000/api/report', {
+        method: 'POST',
+        body: data,
+      });
+
+      if (!res.ok) {
+         throw new Error(`Failed with status ${res.status}`);
+      }
+
+      const result = await res.json();
+      console.log('Report submitted successfully:', result);
+      setSuccess(true);
+      
+      // Reset form
+      setFormData({ targetUrl: '', description: '', imageFile: null });
+      setTimeout(() => setSuccess(false), 3000);
+      
+    } catch (err) {
+      console.error('Error submitting report:', err);
+      alert('Failed to submit report.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -149,10 +194,21 @@ export default function RootPage() {
                 </div>
                 
                 <button 
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-[#FF385C] hover:bg-[#D70466] text-white w-20 h-20 rounded-[28px] flex items-center justify-center transition-all shadow-2xl shadow-[#FF385C]/30 active:scale-95 group/btn"
-                  onClick={() => alert(`Submitting: ${formData.targetUrl}`)}
+                  className={clsx(
+                    "absolute right-4 top-1/2 -translate-y-1/2 text-white w-20 h-20 rounded-[28px] flex items-center justify-center transition-all shadow-2xl active:scale-95 group/btn",
+                    success ? "bg-emerald-500 shadow-emerald-500/30" : "bg-[#FF385C] hover:bg-[#D70466] shadow-[#FF385C]/30",
+                    loading && "opacity-80 pointer-events-none"
+                  )}
+                  onClick={handleSubmit}
+                  disabled={loading}
                 >
-                  <Search size={32} strokeWidth={3} className="group-hover/btn:scale-110 transition-transform" />
+                  {loading ? (
+                     <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : success ? (
+                     <CheckCircle2 size={32} strokeWidth={3} className="text-white" />
+                  ) : (
+                     <ArrowRight size={32} strokeWidth={3} className="group-hover/btn:scale-110 transition-transform" />
+                  )}
                 </button>
               </div>
             </div>
